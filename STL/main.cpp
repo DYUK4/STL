@@ -65,9 +65,22 @@ template<typename T> void vector_info(const std::vector<T>& vec);
 	vector_info(vec);
 	vec.resize(14);
 	for (int i : vec)cout << i << tab; cout << endl;
-
-
 	vector_info(vec);
+
+	
+https://legacy.cplusplus.com/reference/vector/vector/insert/ //Iterator - указатель при помощи которого мы получаем доступ к элементам структуры данных:// можно перебирать элементы структуры данных/
+// массив - непрерывна€ область пам€ти. [] - возвращает значение по индексу. Ќаходитс€ значение.  ак получить адрес начала вектора, как получить адрес начала любого контейнера - есть метод begin
+	
+	int index;
+	int count;
+	int value;
+	cout << "¬ведите индекс добавл€емого элемента: "; cin >> index;
+	cout << "¬ведите количество добавл€емых элементов: "; cin >> count;
+	cout << "¬ведите значение добавл€емого элемента: "; cin >> value;
+
+	//vec.insert(vec.begin()+ index, value);
+	vec.insert(vec.begin() + index, count, value);
+	for (int i : vec)cout << i << tab; cout << endl;
 
 #endif // STL_VECTOR
 

@@ -1,5 +1,7 @@
+#define _CRT_SECURE_NO_WARNINGS
 #pragma warning (disable: 4326)
 #include<iostream>
+#include<fstream>
 #include<string>
 #include<conio.h>
 #include<map>
@@ -39,7 +41,7 @@ class Crime // совершеное правонарушение
 	// td::string license_plate;// регистрационный номер
 	int id;//нарушение
 	std::string place;
-	std::string time;
+	tm time; //std::string time;
 public:
 	/*const std::string& get_licence_plate()const 
 	{ return license_plate; }*/
@@ -53,10 +55,19 @@ public:
 	const std::string& get_place()const
 	{return place;}
 
-	const std::string& get_time()const 
-	{ return time; }
+	const std::string get_time()const // убрать & - с ним ошибка вывода
+	{
+		std::string result = asctime(&time);
+		result.pop_back();
+		//return asctime(&time); 
+		//return result;
+		const int SIZE = 256;
+		char formatted[SIZE]{};
+		strftime(formatted, SIZE, "%R %e. %m.%Y", &time);
+		return formatted;
+	}
 
-
+	
 	//==========================================================================================
 	/*void set_license_plate(const std::string& license_plate)
 	{ this->license_plate = license_plate;}*/
@@ -68,20 +79,48 @@ public:
 	{ this->place = place; }
 
 	void set_time(const std::string& time) 
-	{ this->time = time; }
+	{ 
+		//1) создаем строку для того чтоды пропарсить полученную строку:
+		char* time_buffer = new char[time.size() + 1] {};
+		//2) копируем полученную строку в буфуе:
+		strcpy(time_buffer, time.c_str());
+		//Функция strcpy(dst,src); копирует содержимое источника (src-Source) в сероку получателя(dst - Destanition)
+		
+		//3) элементы времени . Создаем массив для хранения элементов времени:
+		int time_elements[5]{};
+		int i = 0;
+		char delimiters[] = ":./ ";
+		for (char* pch = strtok(time_buffer, delimiters); pch; pch = strtok(NULL, delimiters))
+			time_elements[i++] = std::atoi(pch);
+		  // Функция  std::atoi() 'ASCII - string to int' преобразует строку целое число.
+
+		delete[]time_buffer; // был нужен для того чтобы пропарсить строку с временем
+
+		//4) сохраняем элементы времени с струкуру 'tm':
+		this->time.tm_hour = time_elements[0];
+		this->time.tm_min = time_elements[1];
+		this->time.tm_mday = time_elements[2];
+		this->time.tm_mon = time_elements[3];
+		this->time.tm_year = time_elements[4] - 1900; // идет отсчет времени
+
+		//this->time = time;
+	}
 
 	//======================= Constructors:======================================
 
-	Crime(
+	Crime
+	(
 		//const std::string& license_plate,
 		int violation_id,
 		const std::string& place,
-		const std::string& time)
+		const std::string& time
+	)
 	{
 		//set_license_plate(license_plate);
-		set_violation_id(violation_id);
-		set_place(place);
-		set_time(time);
+		this->time = {};
+		this->set_violation_id(violation_id);
+		this->set_place(place);
+		this->set_time(time);
 #ifdef DEBUG
 		cout << "Constructor:\t" << this << endl;
 #endif // DEBUG
@@ -93,14 +132,17 @@ public:
 #endif // DEBUG
 
 	}
-
-
 };
 
 std::ostream& operator << (std::ostream& os, const Crime& obj)
 {
-	return os << obj.get_time()<< ":\t" << obj.get_place() <<" - " << obj.get_violation();
+	return os << obj.get_time() << ":\t" << obj.get_place() <<" - " << obj.get_violation();
 }
+
+
+
+void print(const std::map <std::string, std::list <Crime> >& base);
+void save(const std::map <std::string, std::list <Crime> >& base,const std::string& filename);
 
 void main()
 {
@@ -111,24 +153,44 @@ void main()
 
 	std::map<std::string, std::list<Crime>> base =
 	{
-		{"a777bb",{Crime(1, "ул.Ленина", "18:10 1.09.2024"),Crime(2,"пл.Свободы","12:25 20.08.2024")}},
-		{"a000bb",{Crime(6, "ул.Космонавтов", "11:50 1.08.2024"),Crime(8,"ул.Космонавтов","17:25 01.08.2024")}},
-		{"a001bb",{Crime(10, "ул.Пролетарская", "21:50 1.08.2024"),Crime(9,"ул.Космонавтов","21:25 01.08.2024"),Crime(11,"ул.Космонавтов","21:50 01.08.2024"),Crime(12,"ул.Космонавтов","22:05 01.08.2024")}}
+		{"a777bb",{Crime(1, "ул.Ленина", "18:10 1.09.2024"), Crime(2,"пл.Свободы","12:25 20.08.2024")}},
+		{"a000bb",{Crime(6, "ул.Космонавтов", "11:50 1.08.2024"), Crime(8,"ул.Космонавтов","17:25 01.08.2024")}},
+		{"a001bb",{Crime(10, "ул.Пролетарская", "21:50 1.08.2024"), Crime(9,"ул.Космонавтов","21:25 01.08.2024"), Crime(11,"ул.Космонавтов","21:50 01.08.2024"), Crime(12,"ул.Космонавтов","22:05 01.08.2024")}}
 	};
+	print(base);
+	save(base,"base.txt");
 
+}
+void print(const std::map <std::string, std::list <Crime> >& base)
+{
 	cout << delimiter << endl;
-
-	for (std::map<std::string, std::list<Crime>>::iterator map_it = base.begin(); map_it != base.end(); ++map_it)
+	for (std::map<std::string, std::list<Crime>>::const_iterator map_it = base.begin(); map_it != base.end(); ++map_it)
 	{
-		cout << map_it->first << ":\t";
-		for (std::list<Crime>::iterator it = map_it->second.begin(); it != map_it->second.end(); ++it)
+		cout << map_it->first << ":\n";
+		for (std::list<Crime>::const_iterator it = map_it->second.begin(); it != map_it->second.end(); ++it)
 		{
 			cout << "\t" << *it << endl;
 
 		}
 		cout << delimiter << endl;
 	}
+}
+void save(const std::map <std::string, std::list <Crime> >& base, const std::string& filename)
+{
+	std::ofstream fout(filename);
+	fout << delimiter << endl;
+	for (std::map<std::string, std::list<Crime>>::const_iterator map_it = base.begin(); map_it != base.end(); ++map_it)
+	{
+		fout << map_it->first << ":\n";
+		for (std::list<Crime>::const_iterator it = map_it->second.begin(); it != map_it->second.end(); ++it)
+		{
+			fout << "\t" << *it << endl;
 
+		}
+		fout << delimiter << endl;
+		std::string command = "Notepad " + filename;
+		system(command.c_str());
+	}
 }
 
-//  46  2/39
+//  47  1:25

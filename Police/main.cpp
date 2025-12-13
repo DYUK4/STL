@@ -16,6 +16,22 @@ using std::endl;
 #define tab "\t"
 #define delimiter "\----------------------------------------------------\n"
 
+#define Enter      13
+#define Escape     27
+#define UP_ARROW   72
+#define DOWN_ARROW 80
+
+const char* MENU_ITEMS[] =
+{
+	"1. Загрузить базу из файла;",
+	"2. Сохранить базу в файл",
+	"3. Вывести базу на экран",
+	"4. Вывести информацию по номеру",
+	"5. Добавить нарушение",
+};
+const int MENU_SIZE = sizeof(MENU_ITEMS) / sizeof(MENU_ITEMS[0]);
+
+
 
 const std::map<int, std::string>VIOLATIONS =
 {
@@ -168,12 +184,15 @@ std::istream& operator>>(std::istream& is, Crime& obj) // для четния с файла
 
 
 
+int menu();
 void print(const std::map <std::string, std::list <Crime> >& base);
 void save(const std::map <std::string, std::list <Crime> >& base,const std::string& filename);
 std::map<std::string, std::list<Crime>> load(const std::string& filename);
 
+
+
 //#define SAVE_CHECK
-#define LOAD_CHECK
+//#define LOAD_CHECK
 
 void main()
 {
@@ -200,8 +219,42 @@ void main()
 	print(base);
 #endif // LOAD_CHECK
 
+	menu();
 
+	
 }
+
+
+int menu()
+{
+	int selected_item = 0;
+	char key;
+		do
+	{
+			system("CLS");
+		for (int i = 0; i<MENU_SIZE; i++)
+		{
+			
+			cout << (i == selected_item ? "[" : " ");
+			cout.width(32);
+			cout << std::left;
+			cout << MENU_ITEMS[i];
+			cout << (i == selected_item ? "]" : " ");
+			cout << endl;
+		}
+			key = _getch();
+			// cout << (int)key << endl;
+			switch (key)
+			{
+			case UP_ARROW: if (selected_item > 0)selected_item--; break;
+			case DOWN_ARROW: if (selected_item < MENU_SIZE-1)selected_item++; break;
+			case Enter: return selected_item;
+			case Escape: return 0;
+			}
+	} while (key!=Escape);
+	return 0;
+}
+
 void print(const std::map <std::string, std::list <Crime> >& base)
 {
 	cout << delimiter << endl;
@@ -217,6 +270,7 @@ void print(const std::map <std::string, std::list <Crime> >& base)
 	}
 	cout << "Количество номеров в базе: " << base.size() << endl;
 }
+
 
 
 void save(const std::map <std::string, std::list <Crime> >& base, const std::string& filename)

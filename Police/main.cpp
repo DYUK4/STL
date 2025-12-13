@@ -3,6 +3,7 @@
 #include<iostream>
 #include<fstream>
 #include<string>
+#include<sstream>
 #include<conio.h>
 #include<map>
 #include<list>
@@ -18,6 +19,7 @@ using std::endl;
 
 const std::map<int, std::string>VIOLATIONS =
 {
+	{0,"N/A"},
 	{1,"Ремень безопасности"},
 	{2,"Парковка в неположенном месте"},
 	{3,"Пересечение сплошной"},
@@ -109,15 +111,18 @@ public:
 
 		//this->time = time;
 	}
+	void set_timestamp(time_t timestamp)
+	{
+		time = *localtime(&timestamp);
+	}
 
 	//======================= Constructors:======================================
 
-	Crime
+	explicit Crime // Без 'explicit' выдает ошибку в 'ofstream operator'
 	(
-		//const std::string& license_plate,
-		int violation_id,
-		const std::string& place,
-		const std::string& time
+		int violation_id = 0,
+		const std::string& place = "Place",
+		const std::string& time = "00:00 01.01.2000"
 	)
 	{
 		//set_license_plate(license_plate);
@@ -142,15 +147,33 @@ std::ostream& operator << (std::ostream& os, const Crime& obj)
 {
 	return os << obj.get_time() << ":\t" << obj.get_place() <<" - " << obj.get_violation();
 }
-std::ofstream& operator<<(std::ofstream& os, const Crime& obj)
+std::ofstream& operator<<(std::ofstream& os, const Crime& obj) // для записи в файл
 {
 	os << obj.get_violation_id() << " " << obj.get_timestamp() << " " << obj.get_place();
 	return os;
 }
+std::istream& operator>>(std::istream& is, Crime& obj) // для четния с файла
+{
+	int id;
+	time_t timestamp;
+	std::string place;
+	is >> id >> timestamp;
+	std::getline(is, place, ',');
+	is.ignore();
+	obj.set_violation_id(id);
+	obj.set_timestamp(timestamp);
+	obj.set_place(place);
+	return is;
+}
+
 
 
 void print(const std::map <std::string, std::list <Crime> >& base);
 void save(const std::map <std::string, std::list <Crime> >& base,const std::string& filename);
+std::map<std::string, std::list<Crime>> load(const std::string& filename);
+
+//#define SAVE_CHECK
+#define LOAD_CHECK
 
 void main()
 {
@@ -159,6 +182,7 @@ void main()
 	/*Crime crime(1, "ул.Ленина", "18:10 1.09.2024");
 	cout << crime << endl;*/
 
+#ifdef SAVE_CHECK
 	std::map<std::string, std::list<Crime>> base =
 	{
 		{"a777bb",{Crime(1, "ул.Ленина", "18:10 1.09.2024"), Crime(2,"пл.Свободы","12:25 20.08.2024")}},
@@ -166,7 +190,16 @@ void main()
 		{"a001bb",{Crime(10, "ул.Пролетарская", "21:50 1.08.2024"), Crime(9,"ул.Космонавтов","21:25 01.08.2024"), Crime(11,"ул.Космонавтов","21:50 01.08.2024"), Crime(12,"ул.Космонавтов","22:05 01.08.2024")}}
 	};
 	print(base);
-	save(base,"base.txt");
+	save(base, "base.txt");
+#endif // SAVE_CHECK
+
+
+#ifdef LOAD_CHECK
+
+	std::map<std::string, std::list<Crime>> base = load("base.txt");
+	print(base);
+#endif // LOAD_CHECK
+
 
 }
 void print(const std::map <std::string, std::list <Crime> >& base)
@@ -182,6 +215,7 @@ void print(const std::map <std::string, std::list <Crime> >& base)
 		}
 		cout << delimiter << endl;
 	}
+	cout << "Количество номеров в базе: " << base.size() << endl;
 }
 
 
@@ -190,7 +224,8 @@ void save(const std::map <std::string, std::list <Crime> >& base, const std::str
 	
 	std::ofstream fout(filename);
 	//fout << delimiter << endl;
-	for (std::map<std::string, std::list<Crime>>::const_iterator map_it = base.begin(); map_it != base.end(); ++map_it)
+	for (std::map<std::string, std::list<Crime>>::const_iterator map_it = base.begin(); map_it != base.end(); 
+	 ++map_it)
 	{
 		fout << map_it->first << ":\t";
 		for (std::list<Crime>::const_iterator it = map_it->second.begin(); it != map_it->second.end(); ++it)
@@ -200,14 +235,54 @@ void save(const std::map <std::string, std::list <Crime> >& base, const std::str
 			fout << *it << ",";
 
 		}
-		fout.seekp(-1, std::ios::cur); // метод seekp(offset,direction) задает позицию курсора записи(p - put)
+		//fout.seekp(-1, std::ios::cur); // метод seekp(offset,direction) задает позицию курсора записи(p - put)
 		// -1 - это смещение на один символ обратно, std::ios::cur - показывает что смещение производится от текущей позиции курсора
 		//fout << delimiter << endl;
-		fout << ";\n";
+		//fout << ";\n";
+		fout << endl;
 	}
-	fout.close();
+	    fout.close();
 		std::string command = "notepad " + filename;
 		system(command.c_str());
+}
+std::map<std::string, std::list<Crime>> load(const std::string& filename)
+{
+	std::map<std::string, std::list<Crime>>base;
+	std::ifstream fin(filename);
+	if (fin.is_open())
+	{
+		while (!fin.eof())
+		{
+			std::string licence_plate;
+			std::getline(fin, licence_plate, ':');
+			//if (licence_plate.empty())continue;
+			licence_plate.erase(0, licence_plate.find_first_not_of('\n')); // убирает пробелы между строками
+			fin.ignore(); //:
+
+			std::string crimes;
+			std::getline(fin, crimes);
+			char* sz_buffer = new char[crimes.size() + 1] {};
+			strcpy(sz_buffer, crimes.c_str());
+			char delimiters[] = ",";
+			Crime crime;// (0, "place", "00:00 01.01.2000");
+			for (char* pch = strtok(sz_buffer, delimiters); pch; pch = strtok(NULL, delimiters))
+			{
+			std:cout << pch << "\t";
+				std::stringstream ss_crime(pch, std::ios_base::in | std::ios_base::out);
+				ss_crime >> crime;
+				base[licence_plate].push_back(crime);
+			}
+			cout << endl;
+			delete[] sz_buffer;
+
+		}
+		fin.close();
+	}
+	else
+	{
+		std::cerr << "Error: file not found" << endl;
+	}
+	return base;
 }
 
 
